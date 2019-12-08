@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class Player_Script : MonoBehaviour
 {
@@ -12,6 +13,9 @@ public class Player_Script : MonoBehaviour
 
     public float speed;
     public float jumpForce;
+    public float powerUpTimer;
+    public float startPowerUpTimer;
+    public float startTime = 70.0F;
 
 
     public Transform startMarker;
@@ -20,17 +24,31 @@ public class Player_Script : MonoBehaviour
     public Text winText;
     public Text livesText;
     public Text countText;
+    public Text countDownText;
+    public Text restartText;
     private AudioSource musicSource;
     public AudioClip musicClip;
-    
+    public AudioClip coinSound;
+    public AudioClip jumpSound;
+
 
     private int scoreValue = 0;
     private int count;
     private int lives;
 
+
     public bool isGrounded;
+    public bool isSpeedUp;
+    public bool restart;
+
     private bool facingRight = true;
 
+    private float baseSpeed;
+
+    void Awake()
+    {
+        Time.timeScale = 1f;
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -41,12 +59,14 @@ public class Player_Script : MonoBehaviour
         lives = 3;
         SetCountText();
         anim = GetComponent<Animator>();
-
+        baseSpeed = 7;
+        startPowerUpTimer = powerUpTimer;
     }
 
 
     // Update is called once per frame
-    
+
+
     void FixedUpdate()
     {
         float hozMovement = Input.GetAxis("Horizontal");
@@ -70,7 +90,14 @@ public class Player_Script : MonoBehaviour
         }
 
     }
-    
+
+    void Flip()
+    {
+        facingRight = !facingRight;
+        Vector2 Scaler = transform.localScale;
+        Scaler.x = Scaler.x * -1;
+        transform.localScale = Scaler;
+    }
 
     void SetCountText()
     {
@@ -82,7 +109,7 @@ public class Player_Script : MonoBehaviour
             scoreValue = 0;
             isLevel2 = true;
         }
-        
+
         if (scoreValue >= 8 && isLevel2 == true)
         {
             winText.text = "You've Won! Game Created by Cassandra Watts";
@@ -94,18 +121,19 @@ public class Player_Script : MonoBehaviour
         {
             winText.text = "Game Over!";
             Destroy(gameObject);
+            restart = true;
         }
     }
-   
 
 
-        private void OnCollisionEnter2D(Collision2D collision)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        if(collision.collider.tag == "Coin")
+        if (collision.collider.tag == "Coin")
         {
             scoreValue += 1;
             score.text = scoreValue.ToString();
             Destroy(collision.collider.gameObject);
+            musicSource.PlayOneShot(coinSound);
         }
         if (collision.gameObject.CompareTag("Enemy"))
         {
@@ -114,6 +142,7 @@ public class Player_Script : MonoBehaviour
             lives = lives - 1;
             SetCountText();
         }
+
 
     }
     private void OnCollisionStay2D(Collision2D collision)
@@ -125,16 +154,43 @@ public class Player_Script : MonoBehaviour
             {
                 anim.SetInteger("State", 3);
                 rb2d.AddForce(new Vector2(0, jumpForce), ForceMode2D.Impulse);
+                musicSource.PlayOneShot(jumpSound);
             }
-                isGrounded = false;
-            if (Input.GetKeyUp (KeyCode.W))
+            isGrounded = false;
+            if (Input.GetKeyUp(KeyCode.W))
             {
                 anim.SetInteger("State", 0);
             }
+
         }
     }
+    void PowerUpCheck()
+    {
+        if (!isSpeedUp)
+        {
+            speed = baseSpeed;
+        }
+
+    }
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Powerup"))
+        {
+            if (other.GetComponent<PowerUp_Script>().type == "SpeedUp")
+            {
+                isSpeedUp = true;
+                startPowerUpTimer = powerUpTimer;
+                speed += 8;
+                Debug.Log("Add Speed");
+            }
+            other.gameObject.SetActive(false);
+        }
+    }
+
+
     private void Update()
     {
+
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             anim.SetInteger("State", 2);
@@ -147,7 +203,7 @@ public class Player_Script : MonoBehaviour
         {
             anim.SetInteger("State", 1);
         }
-        if (Input.GetKeyUp (KeyCode.D))
+        if (Input.GetKeyUp(KeyCode.D))
         {
             anim.SetInteger("State", 0);
         }
@@ -168,17 +224,41 @@ public class Player_Script : MonoBehaviour
         {
             anim.SetInteger("State", 0);
         }
+        
+        startPowerUpTimer -= Time.deltaTime;
+        startTime -= Time.deltaTime;
+        countDownText.text = startTime.ToString("F0");
+
+        if (startPowerUpTimer <= 0)
+        {
+            isSpeedUp = false;
+        }
+
+            if (startTime <= 0)
+            {
+                restartText.text = "Your Time Has Run Out! Game Over!";
+                restart = true;
+            }
+            if (restart)
+            {
+                Time.timeScale = 0f;
+
+                if (Input.GetKeyDown(KeyCode.T))
+                {
+                    Destroy(this.gameObject);
+                    restart = false;
+                    SceneManager.LoadScene("SampleScene");
+                }
+            }
+            PowerUpCheck();
+
+        }
+      
+
 
     }
-    void Flip()
-    {
-        facingRight = !facingRight;
-        Vector2 Scaler = transform.localScale;
-        Scaler.x = Scaler.x * -1;
-        transform.localScale = Scaler;
-    }
 
 
 
+    
 
-}
